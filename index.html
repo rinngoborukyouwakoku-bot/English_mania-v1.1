@@ -17,6 +17,7 @@
             --secondary: #fff;
             --accent: #ff6b6b;
             --correct: #2ecc71;
+            --delete: #e74c3c;
         }
         body.dark-mode {
             --bg-color: #1e1e1e;
@@ -28,40 +29,44 @@
             font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             transition: background-color 0.3s;
         }
         .screen { display: none; padding: 20px; max-width: 600px; margin: 0 auto; }
         .screen.active { display: block; }
         
-        /* ヘッダー周り */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .btn-icon { background: var(--primary); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px; cursor: pointer; }
+        .btn-icon { background: var(--primary); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; }
         
-        /* ポイントゲージ */
         .point-container { background: var(--secondary); padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px;}
         .progress-bar { background: #ddd; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 5px; }
         .progress-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.5s; }
         
-        /* リスト */
-        .set-item { background: var(--secondary); padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; display: flex; justify-content: space-between;}
+        .set-item { background: var(--secondary); padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .set-info { cursor: pointer; flex-grow: 1; }
+        .btn-delete { background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer; padding: 5px 10px; transition: color 0.2s; }
+        .btn-delete:hover { color: var(--delete); }
         
-        /* 単語作成フォーム */
-        .word-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: var(--secondary); color: var(--text-color); }
+        input[type="text"], input[type="number"], textarea { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: var(--secondary); color: var(--text-color); font-size: 16px;}
         
-        /* クイズ画面 */
-        .quiz-container { text-align: center; margin-top: 50px; }
+        .quiz-container { text-align: center; margin-top: 30px; }
         .question { font-size: 32px; font-weight: bold; margin-bottom: 20px; }
         #answer-input { font-size: 24px; text-align: center; width: 80%; padding: 15px; margin-bottom: 20px; }
         .combo-text { color: var(--accent); font-size: 24px; font-weight: bold; font-style: italic; opacity: 0; transition: opacity 0.2s; }
         
-        /* 結果画面 */
+        /* 制限時間バー */
+        .timer-bar-container { width: 100%; height: 6px; background: #ddd; margin-bottom: 20px; border-radius: 3px; overflow: hidden; display: none; }
+        .timer-bar-fill { height: 100%; background: var(--accent); width: 100%; }
+
         .mistake-list { text-align: left; background: var(--secondary); padding: 15px; border-radius: 8px; }
         .mistake-item { color: var(--accent); margin-bottom: 5px; }
         .correct-ans { color: var(--correct); font-weight: bold; }
+
+        .transfer-section { margin-top: 25px; border-top: 2px dashed #ccc; padding-top: 20px; }
+        .transfer-code-box { background: #eee; padding: 10px; font-family: monospace; font-size: 10px; word-break: break-all; border-radius: 4px; border: 1px solid #ccc; max-height: 80px; overflow-y: auto; margin-bottom: 10px; color: #333;}
+        
+        .setting-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -69,7 +74,7 @@
     <div id="screen-list" class="screen active">
         <div class="header">
             <button class="btn-icon" onclick="openCreateScreen()">+</button>
-            <h2>英単語_mania</h2>
+            <h2 style="margin:0;">英単語_mania</h2>
             <button class="btn-icon" onclick="switchScreen('screen-settings')">⚙</button>
         </div>
         
@@ -79,25 +84,22 @@
             <div id="milestone-msg" style="font-size: 12px; color: var(--accent); margin-top: 5px;"></div>
         </div>
 
-        <div id="sets-container">
-            </div>
+        <div id="sets-container"></div>
     </div>
 
     <div id="screen-create" class="screen">
         <h2>新しいクイズ範囲を作成</h2>
-        <input type="text" id="set-title" placeholder="範囲の名前 (例: Lesson 1)" style="width: 95%; margin-bottom: 20px;">
-        
+        <input type="text" id="set-title" placeholder="範囲の名前 (例: 航空用語)" style="width: 95%; margin-bottom: 20px;">
         <div id="words-container">
-            <div class="word-row">
-                <input type="text" class="ja-input" placeholder="日本語 (例: 航空機)">
-                <input type="text" class="en-input" placeholder="英語 (例: aircraft)">
+            <div class="word-row" style="display:flex; gap:10px; margin-bottom:10px;">
+                <input type="text" class="ja-input" placeholder="日本語">
+                <input type="text" class="en-input" placeholder="英語">
             </div>
         </div>
-        
-        <button class="btn" style="background: gray;" onclick="addWordRow()">+ 単語を追加</button>
-        <div style="margin-top: 20px; display: flex; justify-content: space-between;">
-            <button class="btn" style="background: #e74c3c;" onclick="switchScreen('screen-list')">キャンセル</button>
-            <button class="btn" onclick="saveSet()">保存する</button>
+        <button class="btn" style="background: gray; width:100%; margin-top:10px;" onclick="addWordRow()">+ 単語を追加</button>
+        <div style="margin-top: 30px; display: flex; justify-content: space-between; gap:10px;">
+            <button class="btn" style="background: #95a5a6; flex:1;" onclick="switchScreen('screen-list')">キャンセル</button>
+            <button class="btn" style="flex:1;" onclick="saveSet()">保存する</button>
         </div>
     </div>
 
@@ -105,6 +107,9 @@
         <div class="header">
             <span id="quiz-progress">1 / 10</span>
             <button class="btn" style="padding: 5px 10px;" onclick="abortQuiz()">中断</button>
+        </div>
+        <div class="timer-bar-container" id="quiz-timer-container">
+            <div class="timer-bar-fill" id="quiz-timer-fill"></div>
         </div>
         <div class="quiz-container">
             <div id="combo-display" class="combo-text">1 Combo!</div>
@@ -120,32 +125,54 @@
     <div id="screen-result" class="screen">
         <h2 style="text-align: center;">テスト終了！</h2>
         <h3 style="text-align: center;">正解数: <span id="score-display">0</span> / <span id="total-display">0</span></h3>
+        <p id="time-result-display" style="text-align: center; font-weight: bold; display: none;">タイム: <span id="total-time-elapsed">0</span>秒</p>
         <p style="text-align: center; color: var(--primary);">獲得ポイント: +<span id="earned-points">0</span></p>
-        
         <div id="mistakes-container" class="mistake-list">
-            <h4>間違えた単語:</h4>
+            <h4>結果詳細:</h4>
             <div id="mistakes-list"></div>
         </div>
-        
         <div style="text-align: center; margin-top: 30px;">
             <button class="btn" onclick="returnToList()">リストに戻る</button>
         </div>
     </div>
 
     <div id="screen-settings" class="screen">
-        <h2>総合設定</h2>
-        <div style="background: var(--secondary); padding: 15px; border-radius: 8px;">
-            <label style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                大文字・小文字を厳密に判定する
-                <input type="checkbox" id="setting-strict">
-            </label>
-            <label id="setting-dark-container" style="display: none; justify-content: space-between; color: var(--primary);">
-                ★ 解放済み: ダークモード
-                <input type="checkbox" id="setting-dark" onchange="toggleDarkMode()">
-            </label>
-            <p style="font-size: 12px; color: gray;">ポイントを貯めると新しい設定や機能がアンロックされます！</p>
+        <div class="header">
+            <h2 style="margin:0;">総合設定</h2>
+            <button class="btn" onclick="switchScreen('screen-list')">閉じる</button>
         </div>
-        <button class="btn" style="margin-top: 20px; width: 100%;" onclick="saveSettings()">戻る</button>
+        <div style="background: var(--secondary); padding: 15px; border-radius: 8px; margin-bottom:20px;">
+            <div class="setting-item">
+                <span>大文字・小文字を厳密に判定</span>
+                <input type="checkbox" id="setting-strict" onchange="updateSettingsOnly()">
+            </div>
+            <div class="setting-item">
+                <span>テストの合計時間を計測する</span>
+                <input type="checkbox" id="setting-measure-time" onchange="updateSettingsOnly()">
+            </div>
+            <div class="setting-item">
+                <span>問題に制限時間を設ける</span>
+                <input type="checkbox" id="setting-limit-per-q" onchange="updateSettingsOnly()">
+            </div>
+            <div class="setting-item" id="limit-value-container">
+                <span>制限時間(5-180秒)</span>
+                <input type="number" id="setting-q-time" min="5" max="180" style="width: 60px;" onchange="updateSettingsOnly()">
+            </div>
+            <div class="setting-item" id="setting-dark-container" style="display: none; color: var(--primary);">
+                <span>★ 解放済み: ダークモード</span>
+                <input type="checkbox" id="setting-dark" onchange="toggleDarkMode(); updateSettingsOnly();">
+            </div>
+        </div>
+
+        <div class="transfer-section">
+            <h3>データの引き継ぎ・バックアップ</h3>
+            <button class="btn" style="width:100%; margin-bottom:10px;" onclick="exportData()">引き継ぎコードを発行する</button>
+            <div id="export-area" style="display:none;">
+                <div id="transfer-code-display" class="transfer-code-box"></div>
+            </div>
+            <textarea id="import-code-input" placeholder="ここにコードを貼り付けてください" style="height:60px; margin-bottom:10px; width:95%;"></textarea>
+            <button class="btn" style="width:100%; background:var(--accent);" onclick="importData()">データを読み込む</button>
+        </div>
     </div>
 
 <script>
@@ -154,256 +181,272 @@
         sets: [],
         points: 0,
         unlocked: [],
-        settings: { strict: false, dark: false }
+        settings: { 
+            strict: false, 
+            dark: false, 
+            measureTime: false, 
+            limitPerQ: false, 
+            qTime: 10 
+        }
     };
 
-    // --- 状態変数 ---
+    // 初期化時、足りない設定値があれば補完
+    if (appData.settings.measureTime === undefined) appData.settings.measureTime = false;
+    if (appData.settings.limitPerQ === undefined) appData.settings.limitPerQ = false;
+    if (appData.settings.qTime === undefined) appData.settings.qTime = 10;
+
     let currentQuiz = [];
     let currentQuestionIndex = 0;
     let mistakes = [];
     let currentCombo = 0;
+    
+    // タイマー用変数
+    let quizStartTime = 0;
+    let questionTimer = null;
+    let timeLeft = 0;
 
-    // --- 初期化 ---
     window.onload = () => {
         applySettings();
         renderList();
         updatePointDisplay();
     };
 
-    function saveData() {
-        localStorage.setItem('tangoManiaData', JSON.stringify(appData));
-    }
+    function saveData() { localStorage.setItem('tangoManiaData', JSON.stringify(appData)); }
 
     function switchScreen(screenId) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(screenId).classList.add('active');
+        window.scrollTo(0,0);
     }
 
-    // --- リスト画面 ---
+    // --- リスト表示 & 削除 ---
     function renderList() {
         const container = document.getElementById('sets-container');
         container.innerHTML = '';
         if (appData.sets.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:gray;">左上の「+」ボタンから単語を追加してね！</p>';
+            container.innerHTML = '<p style="text-align:center; color:gray; margin-top:50px;">リストが空です。</p>';
             return;
         }
         appData.sets.forEach((set, index) => {
             const div = document.createElement('div');
             div.className = 'set-item';
-            div.innerHTML = `<span><b>${set.title}</b> (${set.words.length}語)</span> <span>▶</span>`;
-            div.onclick = () => startQuiz(index);
+            div.innerHTML = `<div class="set-info" onclick="startQuiz(${index})"><b>${set.title}</b> (${set.words.length}語)</div><button class="btn-delete" onclick="deleteSet(event, ${index})">×</button>`;
             container.appendChild(div);
         });
     }
 
-    // --- ポイントとマイルストーン ---
-    function updatePointDisplay() {
-        document.getElementById('point-display').innerText = appData.points;
-        const barValue = (appData.points % 100); // 100ポイントごとにゲージリセット
-        document.getElementById('point-bar').style.width = barValue + '%';
-
-        let rank = "Beginner";
-        if (appData.points >= 50) rank = "Trainee";
-        if (appData.points >= 150) rank = "Expert";
-        if (appData.points >= 300) rank = "Master";
-        document.getElementById('rank-display').innerText = `Rank: ${rank}`;
-
-        checkMilestones();
+    function deleteSet(event, index) {
+        event.stopPropagation();
+        if(confirm(`「${appData.sets[index].title}」を削除しますか？`)) {
+            appData.sets.splice(index, 1);
+            saveData(); renderList();
+        }
     }
 
-    function checkMilestones() {
-        const msg = document.getElementById('milestone-msg');
-        msg.innerText = '';
-        
-        // 50pt: コンボ機能解放
-        if (appData.points >= 50 && !appData.unlocked.includes('combo')) {
-            appData.unlocked.push('combo');
-            alert('【機能解放】50pt達成！クイズ中の「Combo演出」がアンロックされました！');
-        }
-        // 100pt: ダークモード解放
-        if (appData.points >= 100 && !appData.unlocked.includes('darkmode')) {
-            appData.unlocked.push('darkmode');
-            alert('【機能解放】100pt達成！設定から「ダークモード」が使えるようになりました！');
-        }
-
-        if (appData.unlocked.includes('darkmode')) {
-            document.getElementById('setting-dark-container').style.display = 'flex';
-        }
-        saveData();
-    }
-
-    // --- 作成画面 ---
-    function openCreateScreen() {
-        document.getElementById('set-title').value = '';
-        document.getElementById('words-container').innerHTML = `
-            <div class="word-row">
-                <input type="text" class="ja-input" placeholder="日本語 (例: 航空機)">
-                <input type="text" class="en-input" placeholder="英語 (例: aircraft)">
-            </div>
-        `;
-        switchScreen('screen-create');
-    }
-
-    function addWordRow() {
-        const row = document.createElement('div');
-        row.className = 'word-row';
-        row.innerHTML = `
-            <input type="text" class="ja-input" placeholder="日本語">
-            <input type="text" class="en-input" placeholder="英語">
-        `;
-        document.getElementById('words-container').appendChild(row);
-    }
-
-    function saveSet() {
-        const title = document.getElementById('set-title').value || '無題のリスト';
-        const jaInputs = document.querySelectorAll('.ja-input');
-        const enInputs = document.querySelectorAll('.en-input');
-        
-        let words = [];
-        for (let i = 0; i < jaInputs.length; i++) {
-            if (jaInputs[i].value && enInputs[i].value) {
-                words.push({ ja: jaInputs[i].value, en: enInputs[i].value });
-            }
-        }
-        
-        if (words.length === 0) {
-            alert('少なくとも1つは単語を入力してね！');
-            return;
-        }
-
-        appData.sets.push({ title, words });
-        saveData();
-        renderList();
-        switchScreen('screen-list');
-    }
-
-    // --- クイズ画面 ---
-    function startQuiz(setIndex) {
-        let set = appData.sets[setIndex];
-        // 単語をシャッフル (全単語1回ずつ)
-        currentQuiz = [...set.words].sort(() => Math.random() - 0.5);
-        currentQuestionIndex = 0;
-        mistakes = [];
-        currentCombo = 0;
-        
-        showNextQuestion();
-        switchScreen('screen-quiz');
+    // --- クイズロジック ---
+    function startQuiz(idx) {
+        currentQuiz = [...appData.sets[idx].words].sort(() => Math.random() - 0.5);
+        currentQuestionIndex = 0; mistakes = []; currentCombo = 0;
+        quizStartTime = Date.now(); // テスト開始時間を記録
+        showNextQuestion(); switchScreen('screen-quiz');
     }
 
     function showNextQuestion() {
-        if (currentQuestionIndex >= currentQuiz.length) {
-            finishQuiz();
-            return;
-        }
+        if (currentQuestionIndex >= currentQuiz.length) return finishQuiz();
+        
+        // 既存タイマーのクリア
+        if(questionTimer) clearInterval(questionTimer);
+
         document.getElementById('quiz-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuiz.length}`;
         document.getElementById('question-text').innerText = currentQuiz[currentQuestionIndex].ja;
         const input = document.getElementById('answer-input');
-        input.value = '';
-        input.style.backgroundColor = 'var(--secondary)';
-        setTimeout(() => input.focus(), 100);
+        input.value = ''; input.style.backgroundColor = 'var(--secondary)';
+
+        // 制限時間タイマーの開始
+        if(appData.settings.limitPerQ) {
+            startQuestionTimer();
+        } else {
+            document.getElementById('quiz-timer-container').style.display = 'none';
+        }
+
+        setTimeout(() => input.focus(), 150);
+    }
+
+    function startQuestionTimer() {
+        const bar = document.getElementById('quiz-timer-fill');
+        document.getElementById('quiz-timer-container').style.display = 'block';
+        
+        timeLeft = appData.settings.qTime * 1000;
+        const total = timeLeft;
+        
+        questionTimer = setInterval(() => {
+            timeLeft -= 100;
+            const percent = (timeLeft / total) * 100;
+            bar.style.width = percent + '%';
+            
+            if (timeLeft <= 0) {
+                clearInterval(questionTimer);
+                handleTimeout();
+            }
+        }, 100);
+    }
+
+    function handleTimeout() {
+        mistakes.push({
+            ja: currentQuiz[currentQuestionIndex].ja, 
+            en: currentQuiz[currentQuestionIndex].en, 
+            user: "(時間切れ)"
+        });
+        currentCombo = 0;
+        currentQuestionIndex++;
+        showNextQuestion();
     }
 
     function submitAnswer(e) {
-        e.preventDefault();
+        if(e) e.preventDefault();
+        if(questionTimer) clearInterval(questionTimer);
+
         const input = document.getElementById('answer-input');
-        let userAnswer = input.value.trim();
-        let correctAnswer = currentQuiz[currentQuestionIndex].en;
-
-        if (!appData.settings.strict) {
-            userAnswer = userAnswer.toLowerCase();
-            correctAnswer = correctAnswer.toLowerCase();
-        }
-
-        if (userAnswer === correctAnswer) {
-            // 正解
+        let user = input.value.trim(), correct = currentQuiz[currentQuestionIndex].en;
+        
+        if (!appData.settings.strict) { user = user.toLowerCase(); correct = correct.toLowerCase(); }
+        
+        if (user === correct) {
             input.style.backgroundColor = '#d4edda';
             currentCombo++;
-            showCombo();
+            showComboEffect();
         } else {
-            // 不正解
-            mistakes.push({
-                ja: currentQuiz[currentQuestionIndex].ja,
-                en: currentQuiz[currentQuestionIndex].en,
-                user: input.value
-            });
+            mistakes.push({ja:currentQuiz[currentQuestionIndex].ja, en:currentQuiz[currentQuestionIndex].en, user:input.value});
             currentCombo = 0;
         }
-
-        currentQuestionIndex++;
-        setTimeout(showNextQuestion, 300); // 0.3秒後に次の問題へ
+        currentQuestionIndex++; 
+        setTimeout(showNextQuestion, 400);
     }
 
-    function showCombo() {
+    function showComboEffect() {
         if (currentCombo > 1 && appData.unlocked.includes('combo')) {
-            const comboEl = document.getElementById('combo-display');
-            comboEl.innerText = `${currentCombo} Combo!`;
-            comboEl.style.opacity = 1;
-            setTimeout(() => comboEl.style.opacity = 0, 500);
+            const el = document.getElementById('combo-display');
+            el.innerText = `${currentCombo} Combo!`; el.style.opacity = 1;
+            setTimeout(() => el.style.opacity = 0, 500);
         }
     }
 
-    function abortQuiz() {
-        if(confirm('クイズを中断してリストに戻る？')) {
+    function finishQuiz() {
+        if(questionTimer) clearInterval(questionTimer);
+        
+        const correctCount = currentQuiz.length - mistakes.length;
+        const earned = (correctCount * 2) + 10;
+        appData.points += earned; saveData();
+
+        // タイム計測の表示
+        if(appData.settings.measureTime) {
+            const totalTime = ((Date.now() - quizStartTime) / 1000).toFixed(1);
+            document.getElementById('total-time-elapsed').innerText = totalTime;
+            document.getElementById('time-result-display').style.display = 'block';
+        } else {
+            document.getElementById('time-result-display').style.display = 'none';
+        }
+
+        document.getElementById('score-display').innerText = correctCount;
+        document.getElementById('total-display').innerText = currentQuiz.length;
+        document.getElementById('earned-points').innerText = earned;
+        document.getElementById('mistakes-list').innerHTML = mistakes.length ? mistakes.map(m => `<div class="mistake-item">✖ ${m.ja}<br><span class="correct-ans">正解: ${m.en}</span> (回答: ${m.user||'未入力'})</div>`).join('') : '<p style="color:var(--correct);">全問正解！完璧です！</p>';
+        
+        switchScreen('screen-result');
+    }
+
+    // --- 設定・引き継ぎ ---
+    function updateSettingsOnly() {
+        appData.settings.strict = document.getElementById('setting-strict').checked;
+        appData.settings.dark = document.getElementById('setting-dark').checked;
+        appData.settings.measureTime = document.getElementById('setting-measure-time').checked;
+        appData.settings.limitPerQ = document.getElementById('setting-limit-per-q').checked;
+        
+        let qTimeVal = parseInt(document.getElementById('setting-q-time').value);
+        if(qTimeVal < 5) qTimeVal = 5;
+        if(qTimeVal > 180) qTimeVal = 180;
+        appData.settings.qTime = qTimeVal;
+        
+        saveData();
+    }
+
+    function applySettings() {
+        document.getElementById('setting-strict').checked = appData.settings.strict;
+        document.getElementById('setting-dark').checked = appData.settings.dark;
+        document.getElementById('setting-measure-time').checked = appData.settings.measureTime;
+        document.getElementById('setting-limit-per-q').checked = appData.settings.limitPerQ;
+        document.getElementById('setting-q-time').value = appData.settings.qTime;
+        toggleDarkMode();
+    }
+
+    function toggleDarkMode() { document.body.classList.toggle('dark-mode', document.getElementById('setting-dark').checked); }
+
+    function returnToList() { updatePointDisplay(); renderList(); switchScreen('screen-list'); }
+
+    function abortQuiz() { 
+        if(confirm('中断しますか？')) {
+            if(questionTimer) clearInterval(questionTimer);
             switchScreen('screen-list');
         }
     }
 
-    // --- 結果画面 ---
-    function finishQuiz() {
-        const total = currentQuiz.length;
-        const correctCount = total - mistakes.length;
-        
-        // ポイント計算 (正解1問につき2pt + 完了ボーナス10pt)
-        const earned = (correctCount * 2) + 10;
-        appData.points += earned;
-        saveData();
+    // --- ポイント管理 ---
+    function updatePointDisplay() {
+        document.getElementById('point-display').innerText = appData.points;
+        const barValue = (appData.points % 100);
+        document.getElementById('point-bar').style.width = barValue + '%';
+        let rank = "Beginner";
+        if (appData.points >= 50) rank = "Trainee";
+        if (appData.points >= 200) rank = "Expert";
+        if (appData.points >= 500) rank = "Mania Master";
+        document.getElementById('rank-display').innerText = `Rank: ${rank}`;
+        checkMilestones();
+    }
 
-        document.getElementById('score-display').innerText = correctCount;
-        document.getElementById('total-display').innerText = total;
-        document.getElementById('earned-points').innerText = earned;
-
-        const mistakesList = document.getElementById('mistakes-list');
-        if (mistakes.length === 0) {
-            mistakesList.innerHTML = '<p style="color:var(--correct);">全問正解！完璧だね！</p>';
-        } else {
-            mistakesList.innerHTML = mistakes.map(m => 
-                `<div class="mistake-item">
-                    ✖ ${m.ja} <br>
-                    あなたの回答: ${m.user || '(空欄)'} <br>
-                    <span class="correct-ans">正解: ${m.en}</span>
-                </div><hr style="border:0; border-top:1px solid #ddd;">`
-            ).join('');
+    function checkMilestones() {
+        if (appData.points >= 50 && !appData.unlocked.includes('combo')) {
+            appData.unlocked.push('combo'); alert('【50pt達成】コンボ演出解放！');
         }
-
-        switchScreen('screen-result');
-    }
-
-    function returnToList() {
-        updatePointDisplay();
-        switchScreen('screen-list');
-    }
-
-    // --- 設定画面 ---
-    function applySettings() {
-        document.getElementById('setting-strict').checked = appData.settings.strict;
-        document.getElementById('setting-dark').checked = appData.settings.dark;
-        toggleDarkMode();
-    }
-
-    function saveSettings() {
-        appData.settings.strict = document.getElementById('setting-strict').checked;
-        appData.settings.dark = document.getElementById('setting-dark').checked;
-        saveData();
-        switchScreen('screen-list');
-    }
-
-    function toggleDarkMode() {
-        const isDark = document.getElementById('setting-dark').checked;
-        if (isDark) {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
+        if (appData.points >= 100 && !appData.unlocked.includes('darkmode')) {
+            appData.unlocked.push('darkmode'); alert('【100pt達成】ダークモード解放！');
         }
+        if (appData.unlocked.includes('darkmode')) document.getElementById('setting-dark-container').style.display = 'flex';
+        saveData();
+    }
+
+    // --- 作成画面用 ---
+    function openCreateScreen() {
+        document.getElementById('set-title').value = '';
+        document.getElementById('words-container').innerHTML = `<div class="word-row" style="display:flex; gap:10px; margin-bottom:10px;"><input type="text" class="ja-input" placeholder="日本語"><input type="text" class="en-input" placeholder="英語"></div>`;
+        switchScreen('screen-create');
+    }
+    function addWordRow() {
+        const row = document.createElement('div'); row.className = 'word-row'; row.style.display = 'flex'; row.style.gap = '10px'; row.style.marginBottom = '10px';
+        row.innerHTML = `<input type="text" class="ja-input" placeholder="日本語"><input type="text" class="en-input" placeholder="英語">`;
+        document.getElementById('words-container').appendChild(row);
+    }
+    function saveSet() {
+        const title = document.getElementById('set-title').value || '無題のリスト';
+        const jas = document.querySelectorAll('.ja-input'), ens = document.querySelectorAll('.en-input');
+        let words = []; jas.forEach((j, i) => { if(j.value && ens[i].value) words.push({ja:j.value, en:ens[i].value}); });
+        if (!words.length) return alert('単語を入力してね');
+        appData.sets.push({title, words}); saveData(); renderList(); switchScreen('screen-list');
+    }
+
+    // --- 引き継ぎ機能 ---
+    function exportData() {
+        const code = btoa(unescape(encodeURIComponent(JSON.stringify(appData))));
+        document.getElementById('transfer-code-display').innerText = code;
+        document.getElementById('export-area').style.display = 'block';
+        alert("コードを発行しました！");
+    }
+    function importData() {
+        const code = document.getElementById('import-code-input').value.trim();
+        if(!code || !confirm("上書きしますか？")) return;
+        try {
+            appData = JSON.parse(decodeURIComponent(escape(atob(code))));
+            saveData(); location.reload();
+        } catch(e) { alert("無効なコードです"); }
     }
 </script>
 </body>
