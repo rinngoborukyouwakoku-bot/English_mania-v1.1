@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>英単語_mania</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" href="icon.png"> 
+    
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --primary: #4a90e2;
+            --secondary: #fff;
+            --accent: #ff6b6b;
+            --correct: #2ecc71;
+        }
+        body.dark-mode {
+            --bg-color: #1e1e1e;
+            --text-color: #f0f0f0;
+            --primary: #bb86fc;
+            --secondary: #2d2d2d;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s;
+        }
+        .screen { display: none; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .screen.active { display: block; }
+        
+        /* ヘッダー周り */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn-icon { background: var(--primary); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px; cursor: pointer; }
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        
+        /* ポイントゲージ */
+        .point-container { background: var(--secondary); padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px;}
+        .progress-bar { background: #ddd; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 5px; }
+        .progress-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.5s; }
+        
+        /* リスト */
+        .set-item { background: var(--secondary); padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; display: flex; justify-content: space-between;}
+        
+        /* 単語作成フォーム */
+        .word-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: var(--secondary); color: var(--text-color); }
+        
+        /* クイズ画面 */
+        .quiz-container { text-align: center; margin-top: 50px; }
+        .question { font-size: 32px; font-weight: bold; margin-bottom: 20px; }
+        #answer-input { font-size: 24px; text-align: center; width: 80%; padding: 15px; margin-bottom: 20px; }
+        .combo-text { color: var(--accent); font-size: 24px; font-weight: bold; font-style: italic; opacity: 0; transition: opacity 0.2s; }
+        
+        /* 結果画面 */
+        .mistake-list { text-align: left; background: var(--secondary); padding: 15px; border-radius: 8px; }
+        .mistake-item { color: var(--accent); margin-bottom: 5px; }
+        .correct-ans { color: var(--correct); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="screen-list" class="screen active">
+        <div class="header">
+            <button class="btn-icon" onclick="openCreateScreen()">+</button>
+            <h2>英単語_mania</h2>
+            <button class="btn-icon" onclick="switchScreen('screen-settings')">⚙</button>
+        </div>
+        
+        <div class="point-container">
+            <div>Total Points: <span id="point-display">0</span> <span id="rank-display" style="font-size: 12px; color: gray;"></span></div>
+            <div class="progress-bar"><div id="point-bar" class="progress-fill"></div></div>
+            <div id="milestone-msg" style="font-size: 12px; color: var(--accent); margin-top: 5px;"></div>
+        </div>
+
+        <div id="sets-container">
+            </div>
+    </div>
+
+    <div id="screen-create" class="screen">
+        <h2>新しいクイズ範囲を作成</h2>
+        <input type="text" id="set-title" placeholder="範囲の名前 (例: Lesson 1)" style="width: 95%; margin-bottom: 20px;">
+        
+        <div id="words-container">
+            <div class="word-row">
+                <input type="text" class="ja-input" placeholder="日本語 (例: 航空機)">
+                <input type="text" class="en-input" placeholder="英語 (例: aircraft)">
+            </div>
+        </div>
+        
+        <button class="btn" style="background: gray;" onclick="addWordRow()">+ 単語を追加</button>
+        <div style="margin-top: 20px; display: flex; justify-content: space-between;">
+            <button class="btn" style="background: #e74c3c;" onclick="switchScreen('screen-list')">キャンセル</button>
+            <button class="btn" onclick="saveSet()">保存する</button>
+        </div>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div class="header">
+            <span id="quiz-progress">1 / 10</span>
+            <button class="btn" style="padding: 5px 10px;" onclick="abortQuiz()">中断</button>
+        </div>
+        <div class="quiz-container">
+            <div id="combo-display" class="combo-text">1 Combo!</div>
+            <div id="question-text" class="question">日本語</div>
+            <form id="quiz-form" onsubmit="submitAnswer(event)">
+                <input type="text" id="answer-input" autocomplete="off" autofocus>
+                <br>
+                <button type="submit" class="btn" style="width: 80%;">答える</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <h2 style="text-align: center;">テスト終了！</h2>
+        <h3 style="text-align: center;">正解数: <span id="score-display">0</span> / <span id="total-display">0</span></h3>
+        <p style="text-align: center; color: var(--primary);">獲得ポイント: +<span id="earned-points">0</span></p>
+        
+        <div id="mistakes-container" class="mistake-list">
+            <h4>間違えた単語:</h4>
+            <div id="mistakes-list"></div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn" onclick="returnToList()">リストに戻る</button>
+        </div>
+    </div>
+
+    <div id="screen-settings" class="screen">
+        <h2>総合設定</h2>
+        <div style="background: var(--secondary); padding: 15px; border-radius: 8px;">
+            <label style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                大文字・小文字を厳密に判定する
+                <input type="checkbox" id="setting-strict">
+            </label>
+            <label id="setting-dark-container" style="display: none; justify-content: space-between; color: var(--primary);">
+                ★ 解放済み: ダークモード
+                <input type="checkbox" id="setting-dark" onchange="toggleDarkMode()">
+            </label>
+            <p style="font-size: 12px; color: gray;">ポイントを貯めると新しい設定や機能がアンロックされます！</p>
+        </div>
+        <button class="btn" style="margin-top: 20px; width: 100%;" onclick="saveSettings()">戻る</button>
+    </div>
+
+<script>
+    // --- データ管理 ---
+    let appData = JSON.parse(localStorage.getItem('tangoManiaData')) || {
+        sets: [],
+        points: 0,
+        unlocked: [],
+        settings: { strict: false, dark: false }
+    };
+
+    // --- 状態変数 ---
+    let currentQuiz = [];
+    let currentQuestionIndex = 0;
+    let mistakes = [];
+    let currentCombo = 0;
+
+    // --- 初期化 ---
+    window.onload = () => {
+        applySettings();
+        renderList();
+        updatePointDisplay();
+    };
+
+    function saveData() {
+        localStorage.setItem('tangoManiaData', JSON.stringify(appData));
+    }
+
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    // --- リスト画面 ---
+    function renderList() {
+        const container = document.getElementById('sets-container');
+        container.innerHTML = '';
+        if (appData.sets.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:gray;">左上の「+」ボタンから単語を追加してね！</p>';
+            return;
+        }
+        appData.sets.forEach((set, index) => {
+            const div = document.createElement('div');
+            div.className = 'set-item';
+            div.innerHTML = `<span><b>${set.title}</b> (${set.words.length}語)</span> <span>▶</span>`;
+            div.onclick = () => startQuiz(index);
+            container.appendChild(div);
+        });
+    }
+
+    // --- ポイントとマイルストーン ---
+    function updatePointDisplay() {
+        document.getElementById('point-display').innerText = appData.points;
+        const barValue = (appData.points % 100); // 100ポイントごとにゲージリセット
+        document.getElementById('point-bar').style.width = barValue + '%';
+
+        let rank = "Beginner";
+        if (appData.points >= 50) rank = "Trainee";
+        if (appData.points >= 150) rank = "Expert";
+        if (appData.points >= 300) rank = "Master";
+        document.getElementById('rank-display').innerText = `Rank: ${rank}`;
+
+        checkMilestones();
+    }
+
+    function checkMilestones() {
+        const msg = document.getElementById('milestone-msg');
+        msg.innerText = '';
+        
+        // 50pt: コンボ機能解放
+        if (appData.points >= 50 && !appData.unlocked.includes('combo')) {
+            appData.unlocked.push('combo');
+            alert('【機能解放】50pt達成！クイズ中の「Combo演出」がアンロックされました！');
+        }
+        // 100pt: ダークモード解放
+        if (appData.points >= 100 && !appData.unlocked.includes('darkmode')) {
+            appData.unlocked.push('darkmode');
+            alert('【機能解放】100pt達成！設定から「ダークモード」が使えるようになりました！');
+        }
+
+        if (appData.unlocked.includes('darkmode')) {
+            document.getElementById('setting-dark-container').style.display = 'flex';
+        }
+        saveData();
+    }
+
+    // --- 作成画面 ---
+    function openCreateScreen() {
+        document.getElementById('set-title').value = '';
+        document.getElementById('words-container').innerHTML = `
+            <div class="word-row">
+                <input type="text" class="ja-input" placeholder="日本語 (例: 航空機)">
+                <input type="text" class="en-input" placeholder="英語 (例: aircraft)">
+            </div>
+        `;
+        switchScreen('screen-create');
+    }
+
+    function addWordRow() {
+        const row = document.createElement('div');
+        row.className = 'word-row';
+        row.innerHTML = `
+            <input type="text" class="ja-input" placeholder="日本語">
+            <input type="text" class="en-input" placeholder="英語">
+        `;
+        document.getElementById('words-container').appendChild(row);
+    }
+
+    function saveSet() {
+        const title = document.getElementById('set-title').value || '無題のリスト';
+        const jaInputs = document.querySelectorAll('.ja-input');
+        const enInputs = document.querySelectorAll('.en-input');
+        
+        let words = [];
+        for (let i = 0; i < jaInputs.length; i++) {
+            if (jaInputs[i].value && enInputs[i].value) {
+                words.push({ ja: jaInputs[i].value, en: enInputs[i].value });
+            }
+        }
+        
+        if (words.length === 0) {
+            alert('少なくとも1つは単語を入力してね！');
+            return;
+        }
+
+        appData.sets.push({ title, words });
+        saveData();
+        renderList();
+        switchScreen('screen-list');
+    }
+
+    // --- クイズ画面 ---
+    function startQuiz(setIndex) {
+        let set = appData.sets[setIndex];
+        // 単語をシャッフル (全単語1回ずつ)
+        currentQuiz = [...set.words].sort(() => Math.random() - 0.5);
+        currentQuestionIndex = 0;
+        mistakes = [];
+        currentCombo = 0;
+        
+        showNextQuestion();
+        switchScreen('screen-quiz');
+    }
+
+    function showNextQuestion() {
+        if (currentQuestionIndex >= currentQuiz.length) {
+            finishQuiz();
+            return;
+        }
+        document.getElementById('quiz-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuiz.length}`;
+        document.getElementById('question-text').innerText = currentQuiz[currentQuestionIndex].ja;
+        const input = document.getElementById('answer-input');
+        input.value = '';
+        input.style.backgroundColor = 'var(--secondary)';
+        setTimeout(() => input.focus(), 100);
+    }
+
+    function submitAnswer(e) {
+        e.preventDefault();
+        const input = document.getElementById('answer-input');
+        let userAnswer = input.value.trim();
+        let correctAnswer = currentQuiz[currentQuestionIndex].en;
+
+        if (!appData.settings.strict) {
+            userAnswer = userAnswer.toLowerCase();
+            correctAnswer = correctAnswer.toLowerCase();
+        }
+
+        if (userAnswer === correctAnswer) {
+            // 正解
+            input.style.backgroundColor = '#d4edda';
+            currentCombo++;
+            showCombo();
+        } else {
+            // 不正解
+            mistakes.push({
+                ja: currentQuiz[currentQuestionIndex].ja,
+                en: currentQuiz[currentQuestionIndex].en,
+                user: input.value
+            });
+            currentCombo = 0;
+        }
+
+        currentQuestionIndex++;
+        setTimeout(showNextQuestion, 300); // 0.3秒後に次の問題へ
+    }
+
+    function showCombo() {
+        if (currentCombo > 1 && appData.unlocked.includes('combo')) {
+            const comboEl = document.getElementById('combo-display');
+            comboEl.innerText = `${currentCombo} Combo!`;
+            comboEl.style.opacity = 1;
+            setTimeout(() => comboEl.style.opacity = 0, 500);
+        }
+    }
+
+    function abortQuiz() {
+        if(confirm('クイズを中断してリストに戻る？')) {
+            switchScreen('screen-list');
+        }
+    }
+
+    // --- 結果画面 ---
+    function finishQuiz() {
+        const total = currentQuiz.length;
+        const correctCount = total - mistakes.length;
+        
+        // ポイント計算 (正解1問につき2pt + 完了ボーナス10pt)
+        const earned = (correctCount * 2) + 10;
+        appData.points += earned;
+        saveData();
+
+        document.getElementById('score-display').innerText = correctCount;
+        document.getElementById('total-display').innerText = total;
+        document.getElementById('earned-points').innerText = earned;
+
+        const mistakesList = document.getElementById('mistakes-list');
+        if (mistakes.length === 0) {
+            mistakesList.innerHTML = '<p style="color:var(--correct);">全問正解！完璧だね！</p>';
+        } else {
+            mistakesList.innerHTML = mistakes.map(m => 
+                `<div class="mistake-item">
+                    ✖ ${m.ja} <br>
+                    あなたの回答: ${m.user || '(空欄)'} <br>
+                    <span class="correct-ans">正解: ${m.en}</span>
+                </div><hr style="border:0; border-top:1px solid #ddd;">`
+            ).join('');
+        }
+
+        switchScreen('screen-result');
+    }
+
+    function returnToList() {
+        updatePointDisplay();
+        switchScreen('screen-list');
+    }
+
+    // --- 設定画面 ---
+    function applySettings() {
+        document.getElementById('setting-strict').checked = appData.settings.strict;
+        document.getElementById('setting-dark').checked = appData.settings.dark;
+        toggleDarkMode();
+    }
+
+    function saveSettings() {
+        appData.settings.strict = document.getElementById('setting-strict').checked;
+        appData.settings.dark = document.getElementById('setting-dark').checked;
+        saveData();
+        switchScreen('screen-list');
+    }
+
+    function toggleDarkMode() {
+        const isDark = document.getElementById('setting-dark').checked;
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+    }
+</script>
+</body>
+</html>
